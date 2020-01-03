@@ -60,33 +60,34 @@ class DOM:
         self.tag = tag
         self.type = type
         self.children = []
+        self.parent = None
 
-    def appendChild(self, name, number = None):
+    def appendChild(self, el, number = None):
         if not number:
             number = len(self.children)
-        if name in self.__dict__:
-            if isinstance(self.__dict__[name], list):
-                self.__dict__[name] = [self.__dict__[name], DOM()]
-                element = self.__dict__[name][1]
+        if el.tag in self.__dict__:
+            if isinstance(self.__dict__[el.tag], list):
+                self.__dict__[el.tag].insert(number, el.tag)
             else:
-                self.__dict__[name].insert(number, DOM())
-                element = self.__dict__[name][number]
+                self.__dict__[el.tag] = [self.__dict__[el.tag], el] # = the older member and the newer
         else:
-            self.__dict__[name] = DOM()
-            element = self.__dict__[name]
-        if not element.tag:
-            element.tag = name
-        element.parent = self
-        if number:
-            self.children.insert(number, element)
-        else:
-            self.children.append(element)
+            self.__dict__[el.tag] = el
+        el.parent = self
+        self.children.insert(number, el)
 
     def setAttr(self, key, value):
         self.attrs[key] = value
 
-    # def __getitem__(self, item):
-    #     return self.children[item]
+    def __repr__(self):
+        string = ""
+        if self.parent:
+            string += self.parent.tag + " >> "
+        for i in self.children:
+            string += self.tag + " >> " + i.tag + "\n"
+        return string
+
+    def __getitem__(self, item):
+        return self.children[item]
 
 
 
@@ -151,22 +152,27 @@ class HTMLParser2:
             ram = DOM(tag = search(r"[\w]+", rawtag).group(), attrs = self.getAttrs(rawtag))
             searchEndTag = search(r"<[ ]*?/[ ]*?" + ram.tag, self.html)
 
-            # find if the tag ends (otherwise it's an inline tag
+            # find if the tag ends else: it's an inline tag
             if searchEndTag:
                 #appends as child of current scope and becomes scope
+                ram.type = "start"
                 self.scope.appendChild(ram)
                 self.scope = ram
+
             else:   #it's an inline tag
                 ram.type = "inline"
                 self.scope.appendChild(ram)
-                pass
 
             #print(search(r"[\w]+", rawtag).group())
             #could do it in a more efficient way with this tag after the endtag, but this might be useful to scope
             pass
 
         elif rawtag[0] == "/":                  #</endtag>
-            pass
+            ram = search(r"[\w]+", rawtag[1:]).group()
+            if ram == self.scope.tag:
+                self.scope = self.scope.parent
+            else:
+                print("error!")
 
         else:
             print("Tag not recognized. Tag:\n" + rawtag)
@@ -180,5 +186,5 @@ class HTMLParser2:
         #print(data)
         pass
 
-
-HTMLParser2("TestTable.html")
+parser = HTMLParser2("TestTable.html")
+print(parser.document.html)
