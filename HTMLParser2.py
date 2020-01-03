@@ -1,61 +1,15 @@
 from re import match, compile, findall, search
+
 #########################################################
 # FUCK HTMLPARSER IM GONNA DO BETTER WITHOUT AS MUCH RE #
 #########################################################
 
-#need to rename id because it will be used by my own DOM
-#identificator = id
-
-#
-# starttag = re.compile(r"<(?:(?!/).)*?[^/]*>", re.I) #<tag>
-# starttag = re.compile(r"<[^<]+?[^/]>", re.I) #<tag>
-# starttag = re.compile(r"<[^<]+?[^/]>", re.I) #<tag>
-# setag = re.compile(r".(?:(?!<).)*?/>", re.I) #<tag/> //start-end tag
-# endtag = re.compile(r"</.+?[^/]>", re.I) #</tag>
-# def printRe(m, msg):
-#     print(msg)
-#     if m:
-#         for i in m:
-#             print(i)
-#     else:
-#         print("Nothing found :/")
-#
-# printRe(re.findall(starttag, "<div lol /> <a> something <br/> <div ></div as>"), "\nstart:")
-# printRe(re.findall(setag, "<div lol > <a> something <br /><br/> <hsi> </div as>"), "\nstart-end:")
-# printRe(re.findall(endtag, "<div lol > <a> something <br/> </div as>"), "\nend:")
-"""
-DOM =
-[
-    head:[
-        ""
-        meta:[
-            ""
-            charset:"UTF-8"
-            ""
-        ]
-        ""
-        title:[
-            ""
-            "Table"
-            ""
-        ]
-        ""
-    ]
-    body:[
-        ""
-        {table:[
-            tbody:[]
-        ]}
-        ""
-    ]
-]
-"""
 attrKey = compile(r"(?<= )[\w]+(?==)")
 attrValue = compile(r'(?<==")[A-Za-z_]+(?=")')
 
 class DOM:
-    def __init__(self, tag = None, attrs = None, text = None, type = None):
-        self.text = text # it will own the tag inside the DOM in order to keep the order(?)
+    def __init__(self, tag = None, attrs = None, text = [], type = None):
+        self.text = text
         self.attrs = attrs
         self.tag = tag
         self.type = type
@@ -78,16 +32,23 @@ class DOM:
     def setAttr(self, key, value):
         self.attrs[key] = value
 
-    def __repr__(self):
-        string = ""
-        if self.parent:
-            string += self.parent.tag + " >> "
-        for i in self.children:
-            string += self.tag + " >> " + i.tag + "\n"
+
+    def __str__(self, level=0):
+        string = "|\t" * (level) + self.tag + ": " + self.type + "\n"
+        for child in self.children:
+            string += child.__str__(level + 1)
         return string
 
-    def __getitem__(self, item):
-        return self.children[item]
+    # def __repr__(self):
+    #     string = ""
+    #     if self.parent:
+    #         string += self.parent.tag + " >> "
+    #     for i in self.children:
+    #         string += self.tag + " >> " + i.tag + "\n"
+    #     return string
+
+    # def __getitem__(self, item):
+    #     return self.children[item]
 
 
 
@@ -97,15 +58,12 @@ class HTMLParser2:
 
     def __init__(self, path):
         self.scope = self.document
+        self.cursorEnd = 0
+        self.cursor = 0
         self.html = open(path, 'r').read()
         self.parse()
 
-    def addTagEl(self, name):
-        exec(name + " = DOM()")
-        exec("self.availableTagElements.append()" + "")
-
     def parse(self):
-        #string.strip() is used to remove white space character before and after the data
         s = self.html.find("<", 0) + 1  #start
         e = 0                           #end //it's inverted for text
         while True:
@@ -115,7 +73,9 @@ class HTMLParser2:
                 break
 
             #data between < > (inner HTML) - self.html[s:e]
-            self.anTag(self.html[s:e].strip(), s)
+            self.cursor = s
+            self.anTag(self.html[s:e].strip())
+            #string.strip() is used to remove white space character from the beginning and the end of a string
 
             #Finding text
             s = self.html.find("<", s) + 1
@@ -125,66 +85,85 @@ class HTMLParser2:
 
             #data between > < (outerHTML) - self.html[e:s-1]
             #[e:s-1], otherwise it would include the tag <
-            self.anData(self.html[e:s-1].strip(), e)
+            self.cursor = e
+            self.anText(self.html[e:s-1].strip())
+        #Parse loop ended
 
-            #Ending
-
-    def anTag(self, rawtag, cursor):       #Analyzing tags, return False if tag is unrecognized
-        #print("'", tag, "'", sep="")
-        #def __init__(self, tag = None, attrs = None, text = None, type = None):
-        if rawtag[0:3] == "!--":                #<!--comment-->
+    def anTag(self, rawtag):       #Analyzing tags, return False if tag is unrecognized
+        # <!--comment-->
+        if rawtag[0:3] == "!--":
             self.scope.appendChild(DOM(tag = "comment", text = rawtag[3:-2], type = "comment"))
             pass
 
-        elif rawtag[0] == "!":                  #<!DOCTYPE>
-            self.scope.appendChild(DOM(tag = "doctype", type = "doctype"))
+        # <!DOCTYPE>
+        elif rawtag[0:8].lower() == "!doctype":
+            self.scope.appendChild(DOM(tag = "doctype", text=rawtag, type = "doctype"))
 
-        elif rawtag[0] == "?":                  #<?PHP>
+        # <?PHP>
+        elif rawtag[0] == "?":
             self.scope.appendChild(DOM(tag = "php", text = rawtag[4:-1], type="script"))
             #idk php lol that's all I'm doing right now
             #TODO
 
-        elif rawtag[-1] == "/":                #<inline tag/> //only according to XTML standards
+        # <span tag/>   //only according to XTML standards
+        elif rawtag[-1] == "/":
             #print(self.getAttrs(rawtag))
             self.scope.appendChild(DOM(tag = search(r"[\w]*", rawtag).group(), attrs = self.getAttrs(rawtag)))
 
-        elif match(r"[\w]", rawtag):            #<start tag>
-            ram = DOM(tag = search(r"[\w]+", rawtag).group(), attrs = self.getAttrs(rawtag))
-            searchEndTag = search(r"<[ ]*?/[ ]*?" + ram.tag, self.html)
+        # <start tag>
+        elif match(r"[\w]", rawtag):
+            temptag = DOM(tag = search(r"[\w]+", rawtag).group(), attrs = self.getAttrs(rawtag))
+            EndTag = search(r"<[ ]*?/[ ]*?" + temptag.tag, self.html[self.cursor:])
+            NewStart = search(r"<[ ]*?" + temptag.tag + r"[^>]*>", self.html[self.cursor:])
 
-            # find if the tag ends else: it's an inline tag
-            if searchEndTag:
-                #appends as child of current scope and becomes scope
-                ram.type = "start"
-                self.scope.appendChild(ram)
-                self.scope = ram
+            # find if the tag ends else: it's an span tag
+            if EndTag:
+                #if the same tag start over again
+                if NewStart and NewStart.start() < EndTag.start():
+                    temptag.type = "span"
+                    self.scope.appendChild(temptag)
 
-            else:   #it's an inline tag
-                ram.type = "inline"
-                self.scope.appendChild(ram)
+                else:
+                    #appends as child of current scope and becomes scope
+                    temptag.type = "div"
+                    self.cursorEnd = EndTag.start()
+                    self.scope.appendChild(temptag)
+                    self.scope = temptag
 
-            #print(search(r"[\w]+", rawtag).group())
-            #could do it in a more efficient way with this tag after the endtag, but this might be useful to scope
-            pass
+            else:   #it's an span tag
+                temptag.type = "span"
+                self.scope.appendChild(temptag)
+
 
         elif rawtag[0] == "/":                  #</endtag>
-            ram = search(r"[\w]+", rawtag[1:]).group()
-            if ram == self.scope.tag:
+            temptag = search(r"[\w]+", rawtag[1:]).group()
+            if temptag == self.scope.tag:
                 self.scope = self.scope.parent
             else:
-                print("error!")
+                print("Error! A different closing tag was expected:\n"
+                      + self.scope.tag + "\n" + temtag.tag + " was expected!")
 
         else:
-            print("Tag not recognized. Tag:\n" + rawtag)
+            print("Tag format not recognized. Tag:\n" + rawtag)
             return False
         return True
 
-    def getAttrs(self, rawtag):     #get attrs as a dictionary
+    def getAttrs(self, rawtag):
+        #get attrs as a dictionary
         return dict(zip(findall(attrKey, rawtag), findall(attrValue, rawtag))) #attrKeyue is compiled before the DOM class
 
-    def anData(self, data, cursor):     #Analyzing data
-        #print(data)
-        pass
+    def anText(self, text):
+        #Analyzing text
+        counter = 0
+        tag = ""
+        searchTag = search(r"<[^>]*>", self.html[self.cursor:self.cursorEnd])
+
+        # if searchTag:
+        #     for i in searchTag.start():
+        #         print(i)
+        #     self.scope.text.append(self.html[self.cursor])
+        # else:
+        #     self.scope.text = text
 
 parser = HTMLParser2("TestTable.html")
 print(parser.document.html)
