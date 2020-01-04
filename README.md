@@ -1,11 +1,13 @@
 # JS-like-HTMLParser
-HTML Parser made by me, much simplier than the builtin version. It includes the DOM class which has a structure similar to the JavaScript element one. Work in progress...
+Python 3 (tested only on 3.8) <br />
+HTML Parser made by me, much simplier than the builtin version. It includes the DOM class which has a structure similar to the JavaScript element one.
 
-(There are probably better option but I wanted to do it by myself)
 
+Final version for now, might upgrade it later. <br />
+(There are probably better options but I wanted to do it by myself) <br />
 Part of a bigger project to be able to recreate page content on standalone programs.
 
-Documentation: (I hope this is enough)
+Documentation: (Minimal since it's for personal use)
 ```
 DOM
    .tag   //tag name
@@ -31,8 +33,9 @@ document = HTMLParser2(document.html).document    //returns a DOM element (somew
 ```
 
 Possible future updates:
--Style/CSS analysis
--JS analysis
--PHP analysis (idk php yet)
+-Style/CSS analysis <br />
+-JS analysis <br />
+-PHP analysis (idk php that well) <br />
+-HTML generator <br />
 
 Made by Tomasz Kaspersky
