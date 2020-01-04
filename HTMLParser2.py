@@ -12,18 +12,18 @@ class DOM:
         self.children = []
         self.parent = None
 
-    def appendChild(self, el = None, number = None):
-        if not number:
-            number = len(self.children)
+    def appendChild(self, el, pos = None):
+        if not pos:
+            pos = len(self.children)
         if el.tag in self.__dict__:
             if isinstance(self.__dict__[el.tag], list):
-                self.__dict__[el.tag].insert(number, el.tag)
+                self.__dict__[el.tag].insert(pos, el.tag)
             else:
-                self.__dict__[el.tag] = [self.__dict__[el.tag], el] # = the older member and the newer
+                self.__dict__[el.tag] = [self.__dict__[el.tag], el] # = [the older member, the newer]
         else:
             self.__dict__[el.tag] = el
         el.parent = self
-        self.children.insert(number, el)
+        self.children.insert(pos, el)
 
     def setAttr(self, key, value):
         self.attrs[key] = value
@@ -31,13 +31,27 @@ class DOM:
 
     def __str__(self, level=0, type = False, text = False):
         string = ""
-        if self.tag == 'text' and self.text != '' and text:
-            string = "|\t" * (level) + "text: \"" + self.text + "\"\n"
-        elif self.tag != 'text':
-            if type:
-                string = "|\t" * (level) + self.tag + "." + self.type + "\n"
-            else:
-                string = "|\t" * (level) + self.tag + "\n"
+        if text:
+            if self.tag == 'text' and self.text != '':
+                string = "|\t" * (level) + "text: \"" + self.text + "\"\n"
+            elif self.tag != 'text':
+                if type:
+                    if isinstance(self.text, str):
+                        string = "|\t" * (level) + self.tag + "." + self.type + ":\n\"\"\"\n" + self.text + "\n\"\"\"\n"
+                    else:
+                        string = "|\t" * (level) + self.tag + "." + self.type + "\n"
+                else:
+                    if isinstance(self.text, str):
+                        string = "|\t" * (level) + self.tag + ":\"\"\"\n" + self.text + "\"\"\"\n"
+                    else:
+                        string = "|\t" * (level) + self.tag + "\n"
+        else:
+            if self.tag != 'text':
+                if type:
+                    string = "|\t" * (level) + self.tag + "." + self.type + "\n"
+                else:
+                    string = "|\t" * (level) + self.tag + "\n"
+            pass
 
         for child in self.children:
             string += child.__str__(level + 1, type, text)
@@ -45,9 +59,8 @@ class DOM:
 
 
 class HTMLParser2:
-    document = DOM(type = "document", tag = "document")
-
     def __init__(self, path):
+        self.document = DOM(type = "document", tag = "document")
         self.scope = self.document
         self.cursorEnd = 0
         self.cursor = 0
