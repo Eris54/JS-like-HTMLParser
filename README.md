@@ -6,7 +6,7 @@ HTML Parser made by me, much simplier than the builtin version. It includes the 
 Part of a bigger project to be able to recreate page content on standalone programs.
 
 Documentation: (I hope this is enough)
-`
+```
 DOM
    .tag   //tag name
    .attrs //dictionary with the attributes of the tag
@@ -28,7 +28,7 @@ DOM
           
 parser = HTMLParser2(document.html)               //initializes parser
 document = HTMLParser2(document.html).document    //returns a DOM element (somewhat similar to js' document)
-`
+```
 
 Possible future updates:
 -Style/CSS analysis
