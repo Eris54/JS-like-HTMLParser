@@ -1,14 +1,10 @@
 from re import match, compile, findall, search
 
-#########################################################
-# FUCK HTMLPARSER IM GONNA DO BETTER WITHOUT AS MUCH RE #
-#########################################################
-
 attrKey = compile(r"(?<= )[\w]+(?==)")
 attrValue = compile(r'(?<==")[A-Za-z_]+(?=")')
 
 class DOM:
-    def __init__(self, tag = None, attrs = None, text = [], type = None):
+    def __init__(self, tag = None, attrs = None, text = None, type = None):
         self.text = text
         self.attrs = attrs
         self.tag = tag
@@ -16,7 +12,7 @@ class DOM:
         self.children = []
         self.parent = None
 
-    def appendChild(self, el, number = None):
+    def appendChild(self, el = None, number = None):
         if not number:
             number = len(self.children)
         if el.tag in self.__dict__:
@@ -33,24 +29,19 @@ class DOM:
         self.attrs[key] = value
 
 
-    def __str__(self, level=0):
-        string = "|\t" * (level) + self.tag + ": " + self.type + "\n"
+    def __str__(self, level=0, type = False, text = False):
+        string = ""
+        if self.tag == 'text' and self.text != '' and text:
+            string = "|\t" * (level) + "text: \"" + self.text + "\"\n"
+        elif self.tag != 'text':
+            if type:
+                string = "|\t" * (level) + self.tag + "." + self.type + "\n"
+            else:
+                string = "|\t" * (level) + self.tag + "\n"
+
         for child in self.children:
-            string += child.__str__(level + 1)
+            string += child.__str__(level + 1, type, text)
         return string
-
-    # def __repr__(self):
-    #     string = ""
-    #     if self.parent:
-    #         string += self.parent.tag + " >> "
-    #     for i in self.children:
-    #         string += self.tag + " >> " + i.tag + "\n"
-    #     return string
-
-    # def __getitem__(self, item):
-    #     return self.children[item]
-
-
 
 
 class HTMLParser2:
@@ -152,18 +143,8 @@ class HTMLParser2:
         #get attrs as a dictionary
         return dict(zip(findall(attrKey, rawtag), findall(attrValue, rawtag))) #attrKeyue is compiled before the DOM class
 
-    def anText(self, text):
+    def anText(self, text_):
         #Analyzing text
         counter = 0
         tag = ""
-        searchTag = search(r"<[^>]*>", self.html[self.cursor:self.cursorEnd])
-
-        # if searchTag:
-        #     for i in searchTag.start():
-        #         print(i)
-        #     self.scope.text.append(self.html[self.cursor])
-        # else:
-        #     self.scope.text = text
-
-parser = HTMLParser2("TestTable.html")
-print(parser.document.html)
+        self.scope.appendChild(DOM(tag = "text", text = text_.strip(), type = "text"))
