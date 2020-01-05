@@ -1,5 +1,5 @@
 # JS-like-HTMLParser
-Python 3 (tested only on 3.8) <br />
+Python 3 (tested only on 3.8) <br /> Fixing some bugs while creating others.
 HTML Parser made by me, much simplier than the builtin version. It includes the DOM class which has a structure similar to the JavaScript element one.
 
 
