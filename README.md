@@ -35,7 +35,7 @@ parser = HTMLParser2(document.html)               //initializes parser
 document = HTMLParser2(document.html).document    //returns a DOM element (somewhat similar to js' document)
 ```
 
-Possible future updates:
+Possible future updates: <br />
 -Style/CSS analysis <br />
 -JS analysis <br />
 -PHP analysis (idk php that well) <br />
