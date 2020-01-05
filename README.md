@@ -1,5 +1,5 @@
 # JS-like-HTMLParser
-Python 3 (tested only on 3.8) <br /> Fixing some bugs while creating others.
+Python 3 (tested only on 3.8) <br />
 HTML Parser made by me, much simplier than the builtin version. It includes the DOM class which has a structure similar to the JavaScript element one.
 
 
@@ -21,6 +21,9 @@ DOM
           //script  - currently only for php
    .appendChild(el, number = None)
           //inserts the (DOM)el at a specific position
+   .findByTag(tag, result = [])
+          //result should be left as it is, the function does what it says.
+          //will make other findBy's in the future
    .setAttr(key, value)
           //sets an attribute       #!# not tested
    .__str__(text = False, type = False) 
@@ -38,4 +41,4 @@ Possible future updates:
 -PHP analysis (idk php that well) <br />
 -HTML generator <br />
 
-Made by Tomasz Kaspersky
+Made by Kacper Tomasik
