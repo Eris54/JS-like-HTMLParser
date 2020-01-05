@@ -1,16 +1,28 @@
-from re import match, compile, findall, search
+from re import match, compile, findall, search, DOTALL, IGNORECASE
 
 attrKey = compile(r"(?<= )[\w]+(?==)")
 attrValue = compile(r'(?<==")[A-Za-z_]+(?=")')
+tags = compile(r"(<\s*\?php)?(?(1)(.*\?>)|(<\s*[^<>]*>))", DOTALL | IGNORECASE)
+div = "div"         #name for a tag that has an endtag < > </ >
+span = "span"       #name for a tag that doesnt have an endtag < > < />
+
+"""
+ffs I told myself I wouldn't make regex too complex
+    (<\s*\?php)?    - checks if the tag is a php one
+    (?(1)           - conditional, if it finds the pattern from the capture group 1:
+    (.*\?>)         - it matches this one, else:
+    (<\s*[^<>]*>)   - it matches a normal tag
+"""
 
 class DOM:
-    def __init__(self, tag = None, attrs = None, text = None, type = None):
+    def __init__(self, tag = None, attrs = None, text = None, type = ""):
         self.text = text
         self.attrs = attrs
         self.tag = tag
         self.type = type
         self.children = []
         self.parent = None
+        self.warning = None
 
     def appendChild(self, el, pos = None):
         if not pos:
@@ -28,6 +40,14 @@ class DOM:
     def setAttr(self, key, value):
         self.attrs[key] = value
 
+    def findByTag(self, tag, result = []):
+        if self.tag == tag:
+            result.append(self)
+        else:
+            for child in self.children:
+                result = child.findByTag(tag, result)
+
+        return result
 
     def __str__(self, level=0, type = False, text = False):
         string = ""
@@ -53,44 +73,54 @@ class DOM:
                     string = "|\t" * (level) + self.tag + "\n"
             pass
 
+        if self.warning:
+            string += self.warning
+
         for child in self.children:
             string += child.__str__(level + 1, type, text)
         return string
 
 
 class HTMLParser2:
-    def __init__(self, path):
+    def __init__(self, decoding = 'UTF-8', HTTPResponse = None, path = None, debug = False):
         self.document = DOM(type = "document", tag = "document")
         self.scope = self.document
         self.cursorEnd = 0
         self.cursor = 0
-        self.html = open(path, 'r').read()
+        if path:
+            self.html = open(path, 'r').read()
+        elif HTTPResponse:
+            self.html = HTTPResponse.read().decode(decoding)
         self.parse()
+        if debug:
+            runningDeb = True
+            closing = 0
+            while runningDeb:
+                closing = self.html.find('<', closing + 3)
+                if closing == -1:
+                    break
+                self.html = self.html[:closing] + "\n" + self.html[closing:]
+            with open("HTMLParser.debug", 'w', encoding=decoding) as f:
+                f.write(self.document.__str__(type = True))
+                f.write(self.html)
 
     def parse(self):
-        s = self.html.find("<", 0) + 1  #start
-        e = 0                           #end //it's inverted for text
+        self.cursor = 0
+        match = search(tags, self.html)
+        if not match:
+            return False
+        s = 0        #start text
+        e = 0        #end //it's inverted for text
         while True:
-            #Finding tags
-            e = self.html.find(">", s)
-            if s == 0:
+            s = match.end() + self.cursor
+            self.anTag(match.group()[1:-1])
+            self.cursor += match.end()
+            match = search(tags, self.html[self.cursor:])
+            if not match:
                 break
+            e = match.start() + self.cursor
 
-            #data between < > (inner HTML) - self.html[s:e]
-            self.cursor = s
-            self.anTag(self.html[s:e].strip())
-            #string.strip() is used to remove white space character from the beginning and the end of a string
-
-            #Finding text
-            s = self.html.find("<", s) + 1
-            if s == 0:
-                break
-            e += 1
-
-            #data between > < (outerHTML) - self.html[e:s-1]
-            #[e:s-1], otherwise it would include the tag <
-            self.cursor = e
-            self.anText(self.html[e:s-1].strip())
+            self.anText(self.html[s:e].strip())
         #Parse loop ended
 
     def anTag(self, rawtag):       #Analyzing tags, return False if tag is unrecognized
@@ -100,10 +130,10 @@ class HTMLParser2:
             pass
 
         # <!DOCTYPE>
-        elif rawtag[0:8].lower() == "!doctype":
+        elif rawtag[0] == "!":
             self.scope.appendChild(DOM(tag = "doctype", text=rawtag, type = "doctype"))
 
-        # <?PHP>
+        # <?PHP?>
         elif rawtag[0] == "?":
             self.scope.appendChild(DOM(tag = "php", text = rawtag[4:-1], type="script"))
             #idk php lol that's all I'm doing right now
@@ -111,41 +141,33 @@ class HTMLParser2:
 
         # <span tag/>   //only according to XTML standards
         elif rawtag[-1] == "/":
-            #print(self.getAttrs(rawtag))
             self.scope.appendChild(DOM(tag = search(r"[\w]*", rawtag).group(), attrs = self.getAttrs(rawtag)))
 
         # <start tag>
-        elif match(r"[\w]", rawtag):
-            temptag = DOM(tag = search(r"[\w]+", rawtag).group(), attrs = self.getAttrs(rawtag))
-            EndTag = search(r"<[ ]*?/[ ]*?" + temptag.tag, self.html[self.cursor:])
-            NewStart = search(r"<[ ]*?" + temptag.tag + r"[^>]*>", self.html[self.cursor:])
+        elif match(r"[\w]+", rawtag):
+            temptag = DOM(tag = search(r"[\w]+", rawtag).group().lower(), attrs = self.getAttrs(rawtag))
+            EndTag = search(r"<\s*?/\s*?" + temptag.tag + r"[^<>]*>", self.html[self.cursor:], IGNORECASE)
 
             # find if the tag ends else: it's an span tag
             if EndTag:
-                #if the same tag start over again
-                if NewStart and NewStart.start() < EndTag.start():
-                    temptag.type = "span"
-                    self.scope.appendChild(temptag)
+                #appends as child of current scope and becomes scope
+                temptag.type = div
+                self.cursorEnd = EndTag.start()
+                self.scope.appendChild(temptag)
+                self.scope = temptag
 
-                else:
-                    #appends as child of current scope and becomes scope
-                    temptag.type = "div"
-                    self.cursorEnd = EndTag.start()
-                    self.scope.appendChild(temptag)
-                    self.scope = temptag
-
-            else:   #it's an span tag
-                temptag.type = "span"
+            else:   #it's a 'span' tag
+                temptag.type = span
                 self.scope.appendChild(temptag)
 
 
         elif rawtag[0] == "/":                  #</endtag>
             temptag = search(r"[\w]+", rawtag[1:]).group()
-            if temptag == self.scope.tag:
+            if temptag.lower() == self.scope.tag:
                 self.scope = self.scope.parent
             else:
-                print("Error! A different closing tag was expected:\n"
-                      + self.scope.tag + "\n" + temtag.tag + " was expected!")
+                self.scope.warning = "Error! A different closing tag was expected: \""\
+                      + self.scope.tag + "\"\n\"" + temptag + "\" was found instead!\n"
 
         else:
             print("Tag format not recognized. Tag:\n" + rawtag)
@@ -158,6 +180,5 @@ class HTMLParser2:
 
     def anText(self, text_):
         #Analyzing text
-        counter = 0
-        tag = ""
         self.scope.appendChild(DOM(tag = "text", text = text_.strip(), type = "text"))
+        #could just append a plain string, might be useful
