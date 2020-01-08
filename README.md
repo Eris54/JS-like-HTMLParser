@@ -7,7 +7,11 @@ Final version for now, might upgrade it later. <br />
 (There are probably better options but I wanted to do it by myself) <br />
 Part of a bigger project to be able to recreate page content on standalone programs.
 
-Documentation: (Minimal since it's for personal use)
+Problems: <br />
+Bugs for JavaScript inside a tag. **Ex:** *<div onclick="alert(1>2)">* <br/>
+
+
+Documentation: (Minimal since it's for personal use) //needs an update
 ```
 DOM
    .tag   //tag name
