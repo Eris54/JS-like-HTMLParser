@@ -3,8 +3,8 @@ from re import match, compile, findall, search, DOTALL, IGNORECASE
 attrKey = compile(r"(?<= )[\w]+(?==)")
 attrValue = compile(r'(?<==")[A-Za-z_]+(?=")')
 tags = compile(r"(<\s*\?php)?(?(1)(.*\?>)|(<\s*[^<>]*>))", DOTALL | IGNORECASE)
-div = "div"         #name for a tag that has an endtag < > </ >
-span = "span"       #name for a tag that doesnt have an endtag < > < />
+div = "."         #name for a tag that has an endtag < > </ >
+span = "/"       #name for a tag that doesnt have an endtag < > < />
 
 """
 ffs I told myself I wouldn't make regex too complex
@@ -46,10 +46,43 @@ class DOM:
         else:
             for child in self.children:
                 result = child.findByTag(tag, result)
+        return result
+
+    def findByAttr(self, key, value, result = []):
+        try:
+            if self.attrs[key] == value:
+                result.append(self)
+        except KeyError:
+            pass
+
+        for child in self.children:
+            result = child.findByAttr(key, value, result)
 
         return result
 
-    def __str__(self, level=0, type = False, text = False):
+    def findByClass(self, class_, result = []):
+        try:
+            if self.attrs["class"] == class_:
+                result.append(self)
+        except KeyError:
+            pass
+
+        for child in self.children:
+            result = child.findByAttr(class_, result)
+        return result
+
+    def findById(self, id_, result = []):
+        try:
+            if self.attrs["id"] == id_:
+                result.append(self)
+        except KeyError:
+            pass
+
+        for child in self.children:
+            result = child.findByAttr(id_, result)
+        return result
+
+    def __str__(self, level=0, type = True, text = False):
         string = ""
         if text:
             if self.tag == 'text' and self.text != '':
@@ -57,9 +90,9 @@ class DOM:
             elif self.tag != 'text':
                 if type:
                     if isinstance(self.text, str):
-                        string = "|\t" * (level) + self.tag + "." + self.type + ":\n\"\"\"\n" + self.text + "\n\"\"\"\n"
+                        string = "|\t" * (level) + self.tag + " " + self.type + ":\n\"\"\"\n" + self.text + "\n\"\"\"\n"
                     else:
-                        string = "|\t" * (level) + self.tag + "." + self.type + "\n"
+                        string = "|\t" * (level) + self.tag + " " + self.type + "\n"
                 else:
                     if isinstance(self.text, str):
                         string = "|\t" * (level) + self.tag + ":\"\"\"\n" + self.text + "\"\"\"\n"
@@ -68,7 +101,7 @@ class DOM:
         else:
             if self.tag != 'text':
                 if type:
-                    string = "|\t" * (level) + self.tag + "." + self.type + "\n"
+                    string = "|\t" * (level) + self.tag + " " + self.type + "\n"
                 else:
                     string = "|\t" * (level) + self.tag + "\n"
             pass
@@ -87,10 +120,10 @@ class HTMLParser2:
         self.scope = self.document
         self.cursorEnd = 0
         self.cursor = 0
-        if path:
-            self.html = open(path, 'r').read()
-        elif HTTPResponse:
+        if HTTPResponse:
             self.html = HTTPResponse.read().decode(decoding)
+        elif path:
+            self.html = open(path, 'r').read()
         self.parse()
         if debug:
             runningDeb = True
@@ -100,9 +133,10 @@ class HTMLParser2:
                 if closing == -1:
                     break
                 self.html = self.html[:closing] + "\n" + self.html[closing:]
-            with open("HTMLParser.debug", 'w', encoding=decoding) as f:
-                f.write(self.document.__str__(type = True))
+            with open("HTMLParser2.debug", 'w', encoding = decoding) as f:
+                f.write(self.document.__str__(type = True, text = True))
                 f.write(self.html)
+                f.close()
 
     def parse(self):
         self.cursor = 0
@@ -141,7 +175,7 @@ class HTMLParser2:
 
         # <span tag/>   //only according to XTML standards
         elif rawtag[-1] == "/":
-            self.scope.appendChild(DOM(tag = search(r"[\w]*", rawtag).group(), attrs = self.getAttrs(rawtag)))
+            self.scope.appendChild(DOM(tag = search(r"[\w]*", rawtag).group(), attrs = self.getAttrs(rawtag), type = span))
 
         # <start tag>
         elif match(r"[\w]+", rawtag):
