@@ -8,7 +8,7 @@ Final version for now, might upgrade it later. <br />
 Part of a bigger project to be able to recreate page content on standalone programs.
 
 Problems: <br />
-Bugs for JavaScript inside a tag. **Ex:** *<div onclick="alert(1>2)">* <br/>
+Bugs for JavaScript inside a tag. **Ex:** *&lt;div onclick="alert(1&gt;2)"&gt;* <br/>
 
 
 Documentation: (Minimal since it's for personal use) //needs an update
